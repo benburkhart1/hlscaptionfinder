@@ -1,0 +1,6 @@
+/target
+*.swp
+*.swo
+config.json
+tarpaulin-report.html
+.env
