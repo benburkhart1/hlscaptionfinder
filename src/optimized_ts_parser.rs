@@ -1,5 +1,4 @@
 use anyhow::Result;
-use log::debug;
 
 const TS_PACKET_SIZE: usize = 188;
 const TS_SYNC_BYTE: u8 = 0x47;
@@ -123,7 +122,6 @@ impl OptimizedTsParser {
         // Extract PMT PID from PAT
         if i + 12 <= packet.len() {
             self.pmt_pid = Some(((packet[i + 10] as u16 & 0x1F) << 8) | packet[i + 11] as u16);
-            debug!("Found PMT PID: {:?}", self.pmt_pid);
         }
         
         Ok(())
@@ -171,7 +169,6 @@ impl OptimizedTsParser {
                 if stream_type == STREAM_TYPE_H264 || stream_type == STREAM_TYPE_H265 {
                     self.video_pid = Some(elementary_pid);
                     self.stream_type = Some(stream_type);
-                    debug!("Found video stream PID: {}, type: 0x{:02x}", elementary_pid, stream_type);
                 }
                 
                 i += 5 + esinfo_length as usize;

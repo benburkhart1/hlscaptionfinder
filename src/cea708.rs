@@ -29,7 +29,6 @@ impl Cea708Parser {
             return Ok(Vec::new());
         }
         
-        debug!("Parsing user data, length: {}, first 8 bytes: {:02x?}", data.len(), &data[0..8.min(data.len())]);
         
         let mut i = 0;
         
@@ -68,14 +67,10 @@ impl Cea708Parser {
         }
         
         // Parse process_em_data_flag and process_cc_data_flag
-        let process_em_data_flag = (data[i] & 0x80) != 0;
         let process_cc_data_flag = (data[i] & 0x40) != 0;
-        let additional_data_flag = (data[i] & 0x20) != 0;
         let cc_count = data[i] & 0x1F;
         i += 1;
         
-        debug!("process_em_data_flag: {}, process_cc_data_flag: {}, additional_data_flag: {}, cc_count: {}", 
-               process_em_data_flag, process_cc_data_flag, additional_data_flag, cc_count);
         
         if !process_cc_data_flag {
             debug!("process_cc_data_flag is false, no caption data");
@@ -103,8 +98,6 @@ impl Cea708Parser {
             let cc_type = data[i] & 0x03;
             let cc_data = [data[i + 1], data[i + 2]];
             
-            debug!("CC {}: marker_bits=0x{:02x}, cc_valid={}, cc_type={}, cc_data=[0x{:02x}, 0x{:02x}]", 
-                   cc_index, marker_bits, cc_valid, cc_type, cc_data[0], cc_data[1]);
             
             if marker_bits != 0x1F {
                 debug!("Invalid marker bits: expected 0x1F, got 0x{:02x}", marker_bits);
@@ -121,7 +114,6 @@ impl Cea708Parser {
             i += 3;
         }
         
-        debug!("Extracted {} valid caption data entries", captions.len());
         
         Ok(captions)
     }

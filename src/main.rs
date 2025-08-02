@@ -15,8 +15,6 @@ mod libcaption_compat;
 mod optimized_ts_parser;
 
 use hls::{HlsParser, PlaylistType};
-use mpeg_ts::MpegTsParser;
-use caption::CaptionDetector;
 use optimized_ts_parser::OptimizedTsParser;
 
 #[derive(Parser)]
@@ -115,8 +113,6 @@ async fn process_current_segments(
 ) -> Result<()> {
     let segments = hls_parser.get_lowest_bitrate_segments(playlist_url).await?;
     let client = hls_parser.client();
-    let mpeg_parser = MpegTsParser::new();
-    let caption_detector = CaptionDetector::new();
     let mut optimized_parser = OptimizedTsParser::new();
     
     for segment in segments {
@@ -129,8 +125,6 @@ async fn process_current_segments(
         match download_and_process_segment(
             client,
             &segment.uri,
-            &mpeg_parser,
-            &caption_detector,
             &mut optimized_parser,
         ).await {
             Ok(captions) => {
@@ -162,8 +156,6 @@ async fn process_current_segments_with_progress(
 ) -> Result<()> {
     let segments = hls_parser.get_lowest_bitrate_segments(playlist_url).await?;
     let client = hls_parser.client();
-    let mpeg_parser = MpegTsParser::new();
-    let caption_detector = CaptionDetector::new();
     let mut optimized_parser = OptimizedTsParser::new();
     
     let mut processed_count = 0;
@@ -179,8 +171,6 @@ async fn process_current_segments_with_progress(
         match download_and_process_segment(
             client,
             &segment.uri,
-            &mpeg_parser,
-            &caption_detector,
             &mut optimized_parser,
         ).await {
             Ok(captions) => {
@@ -217,8 +207,6 @@ async fn process_current_segments_with_progress(
 async fn download_and_process_segment(
     client: &Client,
     segment_url: &str,
-    _mpeg_parser: &MpegTsParser,
-    _caption_detector: &CaptionDetector,
     optimized_parser: &mut OptimizedTsParser,
 ) -> Result<Vec<String>> {
     let response = client.get(segment_url).send().await?;

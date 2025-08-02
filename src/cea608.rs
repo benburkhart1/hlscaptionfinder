@@ -27,7 +27,6 @@ impl Cea608Decoder {
             if data.cc_type <= 1 {
                 if let Some(text) = self.decode_cea608_pair(data.cc_data[0], data.cc_data[1]) {
                     if !text.is_empty() {
-                        debug!("Decoded CEA-608 text: '{}'", text);
                         captions.push(text);
                     }
                 }
@@ -56,7 +55,7 @@ impl Cea608Decoder {
             }
         } else if self.is_special_character(data1, data2) {
             // Handle special character pairs
-            if let Some(ch) = self.decode_special_character(data1, data2) {
+            if let Some(ch) = self.decode_special_character(data2) {
                 result.push(ch);
             }
         } else if self.is_extended_character(data1, data2) {
@@ -93,7 +92,7 @@ impl Cea608Decoder {
         data1 == 0x11 && data2 >= 0x30 && data2 <= 0x3F
     }
     
-    fn decode_special_character(&self, _data1: u8, data2: u8) -> Option<char> {
+    fn decode_special_character(&self, data2: u8) -> Option<char> {
         // CEA-608 special characters
         match data2 {
             0x30 => Some('®'),  // Registered mark

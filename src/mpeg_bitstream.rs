@@ -37,13 +37,6 @@ impl MpegBitstream {
             self.buffer.clear();
         }
         
-        // Debug: Check if the raw data contains TEST1234
-        if data.len() >= 8 {
-            let test_bytes = b"TEST1234";
-            if data.windows(test_bytes.len()).any(|window| window == test_bytes) {
-                debug!("Found TEST1234 bytes in raw video data before NALU parsing!");
-            }
-        }
         
         self.buffer.extend_from_slice(data);
         
@@ -91,7 +84,6 @@ impl MpegBitstream {
         }
         
         let nalu_type = nalu[0] & 0x1F;
-        debug!("Processing NALU type: {}, size: {} bytes", nalu_type, nalu.len());
         
         let is_sei = match self.stream_type {
             Some(STREAM_TYPE_H264) => nalu_type == H264_SEI_PACKET,
@@ -100,7 +92,6 @@ impl MpegBitstream {
         };
         
         if is_sei {
-            debug!("Found SEI NALU with {} bytes", nalu.len());
             return self.parse_sei(&nalu[1..], timestamp);
         } else if nalu_type == H264_SEI_PACKET {
             debug!("Found NALU type 6 (SEI) but stream type check failed. Stream type: {:?}", self.stream_type);
@@ -154,7 +145,6 @@ impl MpegBitstream {
                     timestamp,
                 });
                 
-                debug!("Found SEI message type {} with {} bytes", payload_type, payload_size);
                 
                 i += payload_size as usize;
             } else {

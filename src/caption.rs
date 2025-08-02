@@ -34,23 +34,11 @@ impl CaptionDetector {
     fn extract_captions_from_pes(&self, data: &[u8]) -> Result<Vec<String>> {
         let mut captions = Vec::new();
         
-        // Debug: Check if PES data contains TEST1234 anywhere
-        if data.len() >= 8 {
-            let test_bytes = b"TEST1234";
-            if data.windows(test_bytes.len()).any(|window| window == test_bytes) {
-                debug!("Found TEST1234 bytes in PES data!");
-            }
-        }
         
         let nalus = self.extract_nalus(data)?;
         
         for nalu in nalus {
-            if !nalu.is_empty() {
-                let nalu_type = nalu[0] & 0x1F;
-                debug!("NALU type: {}", nalu_type);
-            }
             if self.is_sei_nalu(&nalu) {
-                debug!("Found SEI NALU");
                 let sei_captions = self.extract_captions_from_sei(&nalu)?;
                 captions.extend(sei_captions);
             }
@@ -82,7 +70,6 @@ impl CaptionDetector {
             }
         }
         
-        debug!("Extracted {} NALUs", nalus.len());
         Ok(nalus)
     }
     
@@ -131,51 +118,30 @@ impl CaptionDetector {
             }
             
             if sei_type == SEI_TYPE_USER_DATA_REGISTERED {
-                debug!("Found SEI user data registered, size: {}", sei_size);
                 let sei_data = &nalu[i..i + sei_size];
-                debug!("SEI data (first 16 bytes): {:02x?}", &sei_data[0..16.min(sei_data.len())]);
                 if let Ok(caption_text) = self.parse_cea_608_708_data(sei_data) {
                     if !caption_text.is_empty() {
-                        debug!("Extracted caption: '{}'", caption_text);
                         captions.push(caption_text);
                     }
                 }
             } else if sei_type == SEI_TYPE_USER_DATA_UNREGISTERED {
-                debug!("Found SEI user data unregistered, size: {}", sei_size);
                 let sei_data = &nalu[i..i + sei_size];
-                debug!("SEI data (first 16 bytes): {:02x?}", &sei_data[0..16.min(sei_data.len())]);
                 // Also try parsing unregistered user data for captions
                 if let Ok(caption_text) = self.parse_cea_608_708_data(sei_data) {
                     if !caption_text.is_empty() {
-                        debug!("Extracted caption from unregistered: '{}'", caption_text);
                         captions.push(caption_text);
                     }
                 }
             } else {
-                debug!("SEI type: {} (not user data)", sei_type);
                 let sei_data = &nalu[i..i + sei_size];
                 
                 // Try parsing as CEA data anyway - some encoders use non-standard SEI types
                 if let Ok(caption_text) = self.parse_cea_608_708_data(sei_data) {
                     if !caption_text.is_empty() {
-                        debug!("Extracted caption from SEI type {}: '{}'", sei_type, caption_text);
                         captions.push(caption_text);
                     }
                 }
                 
-                // Debug: Check if any SEI data contains "TEST1234" as a fallback
-                if let Ok(data_str) = std::str::from_utf8(sei_data) {
-                    if data_str.contains("TEST1234") {
-                        debug!("Found TEST1234 in SEI type {} data!", sei_type);
-                    }
-                }
-                // Also check as raw bytes for the pattern
-                if sei_data.len() >= 8 {
-                    let test_bytes = b"TEST1234";
-                    if sei_data.windows(test_bytes.len()).any(|window| window == test_bytes) {
-                        debug!("Found TEST1234 bytes in SEI type {} data!", sei_type);
-                    }
-                }
             }
             
             i += sei_size;
@@ -224,7 +190,6 @@ impl CaptionDetector {
             return Ok(String::new());
         }
         
-        debug!("Checking CEA data, first 16 bytes: {:02x?}", &data[0..16.min(data.len())]);
         
         // Check for CEA-608/708 identifier
         if &data[0..4] != &CEA_608_IDENTIFIER {
@@ -236,8 +201,6 @@ impl CaptionDetector {
         }
         
         let user_data_type_code = data[4];
-        debug!("User data type code: 0x{:02x} (expected: 0x{:02x})", 
-               user_data_type_code, CEA_708_USER_DATA_TYPE);
         if user_data_type_code != CEA_708_USER_DATA_TYPE {
             debug!("User data type code mismatch");
             return Ok(String::new());
@@ -250,7 +213,6 @@ impl CaptionDetector {
         }
         
         let cc_count = data[i] & 0x1F;
-        debug!("CC count: {}", cc_count);
         i += 1;
         
         let mut caption_text = String::new();
@@ -263,8 +225,6 @@ impl CaptionDetector {
             let cc_valid = (data[i] & 0x04) != 0;
             let cc_type = data[i] & 0x03;
             
-            debug!("CC data: valid={}, type={}, data1=0x{:02x}, data2=0x{:02x}", 
-                   cc_valid, cc_type, data[i + 1], data[i + 2]);
             
             if cc_valid && cc_type <= 3 { // CEA-608 data (CC1, CC2, CC3, CC4)
                 let cc_data_1 = data[i + 1];
@@ -272,7 +232,6 @@ impl CaptionDetector {
                 
                 // Basic CEA-608 character extraction (simplified)
                 if let Some(text) = self.decode_cea608_chars(cc_data_1, cc_data_2) {
-                    debug!("Decoded text: '{}'", text);
                     caption_text.push_str(&text);
                 }
             }
@@ -334,7 +293,6 @@ impl CaptionDetector {
                 .filter(|c| c.is_ascii() && !c.is_control())
                 .collect();
             if !printable.is_empty() && printable.len() > 2 {
-                debug!("Found printable text in raw data: '{}'", printable);
                 caption_text.push_str(&printable);
             }
         }
