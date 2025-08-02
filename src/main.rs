@@ -12,11 +12,12 @@ mod mpeg_bitstream;
 mod cea708;
 mod cea608;
 mod libcaption_compat;
+mod optimized_ts_parser;
 
 use hls::{HlsParser, PlaylistType};
 use mpeg_ts::MpegTsParser;
 use caption::CaptionDetector;
-use libcaption_compat::LibcaptionTsParser;
+use optimized_ts_parser::OptimizedTsParser;
 
 #[derive(Parser)]
 #[command(name = "hlscaptionfinder")]
@@ -116,6 +117,7 @@ async fn process_current_segments(
     let client = hls_parser.client();
     let mpeg_parser = MpegTsParser::new();
     let caption_detector = CaptionDetector::new();
+    let mut optimized_parser = OptimizedTsParser::new();
     
     for segment in segments {
         if processed_segments.contains(&segment.uri) {
@@ -129,6 +131,7 @@ async fn process_current_segments(
             &segment.uri,
             &mpeg_parser,
             &caption_detector,
+            &mut optimized_parser,
         ).await {
             Ok(captions) => {
                 if !captions.is_empty() {
@@ -161,6 +164,7 @@ async fn process_current_segments_with_progress(
     let client = hls_parser.client();
     let mpeg_parser = MpegTsParser::new();
     let caption_detector = CaptionDetector::new();
+    let mut optimized_parser = OptimizedTsParser::new();
     
     let mut processed_count = 0;
     
@@ -177,6 +181,7 @@ async fn process_current_segments_with_progress(
             &segment.uri,
             &mpeg_parser,
             &caption_detector,
+            &mut optimized_parser,
         ).await {
             Ok(captions) => {
                 if !captions.is_empty() {
@@ -214,11 +219,11 @@ async fn download_and_process_segment(
     segment_url: &str,
     _mpeg_parser: &MpegTsParser,
     _caption_detector: &CaptionDetector,
+    optimized_parser: &mut OptimizedTsParser,
 ) -> Result<Vec<String>> {
     let response = client.get(segment_url).send().await?;
     let segment_data = response.bytes().await?;
-    // Use optimized libcaption-compatible parser
-    let mut libcaption_parser = LibcaptionTsParser::new();
-    let captions = libcaption_parser.parse_ts_file(&segment_data)?;
+    // Use optimized TS parser with PAT/PMT/video PID filtering and NALU type 6 checking
+    let captions = optimized_parser.parse_ts_file(&segment_data)?;
     Ok(captions)
 }

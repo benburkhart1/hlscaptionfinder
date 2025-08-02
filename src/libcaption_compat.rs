@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use anyhow::Result;
 
 const TS_PACKET_SIZE: usize = 188;
